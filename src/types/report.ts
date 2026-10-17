@@ -1,0 +1,15 @@
+export type ReportDateRange = { start: string; end: string }
+export type ReportsOverview = { metrics: { id: string; label: string; value: number | string }[] }
+export type ReportFilters = { statusIds?: string[]; memberIds?: string[]; typeIds?: string[] }
+export type ReportQueryState = { projectId: string; dateRange: ReportDateRange; sprintId?: string; filters?: ReportFilters }
+export type ReportPoint = { date: string; value: number }
+export type BurndownReport = { remaining: ReportPoint[]; scope?: ReportPoint[] }
+export type VelocityReport = { sprintId: string; committed: number; completed: number }[]
+export type CumulativeFlowReport = { date: string; statusId: string; count: number }[]
+export type ControlChartReport = { taskId: string; startedAt: string; completedAt?: string; cycleTimeDays?: number }[]
+export type CreatedResolvedReport = { date: string; created: number; resolved: number }[]
+export type ReportsCapabilities = { canViewReports: boolean; canFilterReports: boolean; canExportReports: boolean }
+export type ReportKind = 'burndown' | 'velocity' | 'cumulative-flow' | 'control-chart' | 'created-resolved'
+export type ReportExportFormat = 'csv' | 'xlsx' | 'pdf'
+export type ReportMutationResult = { ok: true } | { ok: false; message?: string }
+export type ReportsDisplayCopy = { serviceUnavailable: string; reportsUnavailable: string; actionUnavailable: string; loading: string }

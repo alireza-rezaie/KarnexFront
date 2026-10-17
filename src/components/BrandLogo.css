@@ -1,0 +1,56 @@
+.brand-logo {
+  position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.brand-logo img {
+  position: absolute;
+  display: block;
+  max-width: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+.brand-logo--mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+}
+
+.brand-logo--mark img {
+  width: 292px;
+  height: auto;
+  left: -63px;
+  right: auto;
+  top: -72px;
+}
+
+.brand-logo--full {
+  width: 132px;
+  height: 40px;
+  border-radius: 8px;
+}
+
+.brand-logo--full img {
+  width: 286px;
+  height: auto;
+  left: -61px;
+  right: auto;
+  top: -70px;
+}
+
+.brand-logo--lg {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+}
+
+.brand-logo--mark.brand-logo--lg img {
+  width: 350px;
+  left: -76px;
+  right: auto;
+  top: -87px;
+}
