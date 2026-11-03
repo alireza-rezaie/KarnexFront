@@ -139,7 +139,7 @@ export function WorkflowCatalogProvider({ children }: { children: ReactNode }) {
   const createWorkflowDraft = useCallback(async (input: Pick<CreateWorkflowDefinitionInput, 'name' | 'description'> & { ownerProjectId: string }): Promise<WorkflowCatalogMutationResult> => {
     const name = input.name.trim(), ownerProjectId = numericId(input.ownerProjectId)
     if (!name) return { ok: false, message: 'نام گردش‌کار الزامی است.' }
-    if (!ownerProjectId || !canManageProjectWorkflow(input.ownerProjectId)) return { ok: false, message: 'فقط مدیر پروژه یا اسکرام‌مسترِ عضو پروژه می‌تواند Draft گردش‌کار بسازد.' }
+    if (!input.ownerProjectId || !canManageProjectWorkflow(input.ownerProjectId) || (apiEnabled && !ownerProjectId)) return { ok: false, message: 'فقط مدیر پروژه یا اسکرام‌مسترِ عضو پروژه می‌تواند Draft گردش‌کار بسازد.' }
     try {
       if (apiEnabled) {
         const dto = await requestApi<ApiWorkflow>('/api/workflows/drafts', { method: 'POST', body: JSON.stringify({ name, description: input.description, ownerProjectId, payload: { statuses: [], transitions: [] } }) })
@@ -175,7 +175,7 @@ export function WorkflowCatalogProvider({ children }: { children: ReactNode }) {
   const cloneWorkflow = useCallback(async (workflowId: string, input: CloneWorkflowDefinitionInput & { ownerProjectId: string }): Promise<WorkflowCatalogMutationResult> => {
     const source = workflows.find(w => w.id === workflowId), recordId = recordIdFor(workflowId), ownerProjectId = numericId(input.ownerProjectId)
     if (!source || !getPublishedWorkflow(workflowId)) return { ok: false, message: 'گردش‌کار منتشرشده پیدا نشد.' }
-    if (!ownerProjectId || !canManageProjectWorkflow(input.ownerProjectId)) return { ok: false, message: 'فقط مدیر پروژه یا اسکرام‌مسترِ عضو پروژه می‌تواند Draft گردش‌کار بسازد.' }
+    if (!input.ownerProjectId || !canManageProjectWorkflow(input.ownerProjectId) || (apiEnabled && !ownerProjectId)) return { ok: false, message: 'فقط مدیر پروژه یا اسکرام‌مسترِ عضو پروژه می‌تواند Draft گردش‌کار بسازد.' }
     try {
       if (apiEnabled && recordId) {
         const dto = await requestApi<ApiWorkflow>(`/api/workflows/${recordId}/clone`, { method: 'POST', body: JSON.stringify({ name: input.name, description: input.description, ownerProjectId }) })
@@ -208,14 +208,14 @@ export function WorkflowCatalogProvider({ children }: { children: ReactNode }) {
   const assignWorkflow = useCallback(async (projectId: string, workflowId: string): Promise<WorkflowCatalogMutationResult> => {
     if (!canManageProjectWorkflow(projectId)) return { ok: false, message: 'فقط مدیر پروژه یا اسکرام‌مسترِ عضو این پروژه می‌تواند گردش‌کار را تخصیص دهد.' }
     const workflow = getPublishedWorkflow(workflowId), projectNumericId = numericId(projectId), workflowRecordId = recordIdFor(workflowId)
-    if (!workflow || !projectNumericId) return { ok: false, message: 'گردش‌کار منتشرشده یا شناسهٔ پروژه پیدا نشد.' }
+    if (!workflow || (apiEnabled && !projectNumericId)) return { ok: false, message: 'گردش‌کار منتشرشده یا شناسهٔ پروژه پیدا نشد.' }
     const statusIds = new Set(workflow.statuses.map(s => s.id))
     const incompatible = [...new Set(tasks.filter(t => t.projectId === projectId && !statusIds.has(t.status)).map(t => t.status))]
     if (incompatible.length) return { ok: false, message: 'وضعیت بعضی از وظایف پروژه در گردش‌کار انتخاب‌شده وجود ندارد. ابتدا وضعیت‌ها را سازگار کنید.' }
     try {
       if (apiEnabled) {
         if (!workflowRecordId) return { ok: false, message: 'شناسهٔ گردش‌کار در سرور موجود نیست.' }
-        await requestApi(`/api/workflows/projects/${projectNumericId}/assignment`, { method: 'PUT', body: JSON.stringify({ workflowId: workflowRecordId }) })
+        await requestApi(`/api/workflows/projects/${projectNumericId!}/assignment`, { method: 'PUT', body: JSON.stringify({ workflowId: workflowRecordId }) })
       }
       const assignment = { projectId, defaultWorkflowId: workflowId }
       setAssignments(current => [...current.filter(a => a.projectId !== projectId), assignment])
