@@ -100,7 +100,24 @@ export default function BoardPage() {
   const [columnError, setColumnError] = useState('')
   const [columnMenu, setColumnMenu] = useState<string | null>(null)
   const [columnDialog, setColumnDialog] = useState<ColumnDialog>(null)
-  const columns = useMemo(() => resolveBoardColumns(resolveColumns(projectId ?? '', statuses), statuses), [projectId, resolveColumns, statuses])
+  const columns = useMemo(() => {
+    const configuredColumns = resolveBoardColumns(resolveColumns(projectId ?? '', statuses), statuses)
+    const mappedStatusIds = new Set(configuredColumns.flatMap((column) => column.statusIds))
+    // A customized board can outlive its workflow mapping. Keep every active
+    // workflow status visible by deriving a recovery column for unmapped statuses.
+    const recoveryColumns: BoardColumn[] = statuses
+      .filter((status) => !mappedStatusIds.has(status.id))
+      .map((status, index) => ({
+        id: `board-column-recovered-${status.id}`,
+        name: status.name,
+        color: status.color,
+        order: configuredColumns.length + index,
+        statusIds: [status.id],
+        pinned: false,
+        custom: false,
+      }))
+    return [...configuredColumns, ...recoveryColumns]
+  }, [projectId, resolveColumns, statuses])
   const terminalStatusPolicy = useOptionalTerminalStatusPolicy()
 
   const orderedColumns = useMemo(() => [...columns].sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.order - b.order), [columns])
