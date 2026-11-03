@@ -1042,13 +1042,15 @@ export default function WorkflowPage() {
               className="h-8 gap-1.5 px-2.5 text-[11px] [&_svg]:size-3.5"
               size="sm"
               disabled={
-                !isDirty ||
+                (!isDirty && Boolean(editorDefinition?.publishedVersionId)) ||
+                !editorDefinition ||
+                editorDefinition.isSystem ||
                 !statusCapabilities.canReplaceStatuses ||
                 !workflowCapabilities.canReplaceTransitions
               }
               onClick={() => void publishDraft()}
             >
-              انتشار تغییرات
+              {editorDefinition && !editorDefinition.publishedVersionId ? "انتشار گردش‌کار" : "انتشار تغییرات"}
             </Button>
           </div>
         </div>
