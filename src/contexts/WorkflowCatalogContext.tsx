@@ -23,15 +23,17 @@ type ApiPayload = { statuses: WorkflowDraftPayload['statuses']; transitions: Wor
 type ApiWorkflow = {
   id: string; recordId: number; name: string; description?: string; ownerProjectId?: string | null;
   isSystem?: boolean; isDraft?: boolean; version: number; publishedVersionId?: string | null;
-  payload: ApiPayload; publishedVersions?: Array<{ id: string; workflowId: string; version: number; publishedAt: string; payload: ApiPayload }>
+  payload?: Partial<ApiPayload>; publishedVersions?: Array<{ id: string; workflowId: string; version: number; publishedAt: string; payload?: Partial<ApiPayload> }>
 }
 type BoardResponse = { projectId: number; workflowId?: string | null }
-const clonePayload = (p: WorkflowDraftPayload): WorkflowDraftPayload => ({
-  statuses: p.statuses.map(s => ({ ...s })),
-  transitions: p.transitions.map(t => ({ ...t, conditions: t.conditions ? structuredClone(t.conditions) : undefined, validators: t.validators ? structuredClone(t.validators) : undefined, approval: t.approval ? structuredClone(t.approval) : undefined })),
+const asArray = <T,>(value: unknown): T[] => Array.isArray(value) ? value as T[] : []
+const normalizePayload = (value?: Partial<WorkflowDraftPayload> | null): WorkflowDraftPayload => ({
+  statuses: asArray<WorkflowDraftPayload['statuses'][number]>(value?.statuses).map(s => ({ ...s })),
+  transitions: asArray<WorkflowTransition>(value?.transitions).map(t => ({ ...t, conditions: t.conditions ? structuredClone(t.conditions) : undefined, validators: t.validators ? structuredClone(t.validators) : undefined, approval: t.approval ? structuredClone(t.approval) : undefined })),
 })
+const clonePayload = (p: WorkflowDraftPayload): WorkflowDraftPayload => normalizePayload(p)
 const cloneVersion = (v: PublishedWorkflowVersion): PublishedWorkflowVersion => ({ ...v, ...clonePayload(v) })
-const cloneDefinition = (w: WorkflowDefinition): WorkflowDefinition => ({ ...w, publishedVersions: w.publishedVersions.map(cloneVersion), draft: w.draft ? clonePayload(w.draft) : undefined })
+const cloneDefinition = (w: WorkflowDefinition): WorkflowDefinition => ({ ...w, publishedVersions: asArray<PublishedWorkflowVersion>(w.publishedVersions).map(cloneVersion), draft: w.draft ? clonePayload(w.draft) : undefined })
 const createId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`
 const validateCatalogPayload = (payload: WorkflowDraftPayload, required: string[]) => {
   if (!payload.statuses.length) return 'حداقل یک وضعیت برای انتشار لازم است.'
@@ -55,7 +57,7 @@ function localDefault(): WorkflowDefinition {
   return { id: defaultWorkflowId, name: 'گردش‌کار پیش‌فرض', description: 'چرخهٔ پایهٔ انجام کار در Karnex', isSystem: true, publishedVersionId: version.id, publishedVersions: [version] }
 }
 function fromApi(dto: ApiWorkflow): StoredWorkflow {
-  const versions = (dto.publishedVersions ?? []).map(v => ({ id: v.id, workflowId: dto.id, version: v.version, publishedAt: v.publishedAt, ...clonePayload(v.payload) }))
+  const versions = asArray<NonNullable<ApiWorkflow['publishedVersions']>[number]>(dto.publishedVersions).map(v => ({ id: v.id, workflowId: dto.id, version: v.version, publishedAt: v.publishedAt, ...clonePayload(v.payload) }))
   const current = versions.find(v => v.id === dto.publishedVersionId) ?? (dto.version > 0 ? {
     id: dto.publishedVersionId ?? `${dto.id}-version-${dto.version}`, workflowId: dto.id, version: dto.version,
     publishedAt: new Date().toISOString(), ...clonePayload(dto.payload),
@@ -102,11 +104,13 @@ export function WorkflowCatalogProvider({ children }: { children: ReactNode }) {
     if (!apiEnabled || !projectsContext) return
     setLoading(true); setError(null)
     try {
-      const response = await requestApi<ApiWorkflow[]>('/api/workflows')
-      const mapped = response.map(fromApi)
+      const response = await requestApi<unknown>('/api/workflows')
+      const items = Array.isArray(response) ? response : (response && typeof response === 'object' && Array.isArray((response as { items?: unknown }).items) ? (response as { items: ApiWorkflow[] }).items : [])
+      const mapped = items.map((item) => fromApi(item as ApiWorkflow))
       if (!mapped.some(w => w.id === defaultWorkflowId)) mapped.unshift(localDefault() as StoredWorkflow)
       setWorkflows(mapped)
-      const boards = await Promise.all(projectsContext.projects.map(async project => {
+      const projects = Array.isArray(projectsContext.projects) ? projectsContext.projects : []
+      const boards = await Promise.all(projects.map(async project => {
         const id = numericId(project.id)
         if (!id) return null
         try { return await requestApi<BoardResponse>(`/api/workflows/projects/${id}/board`) } catch { return null }
@@ -126,7 +130,7 @@ export function WorkflowCatalogProvider({ children }: { children: ReactNode }) {
   const getWorkflow = useCallback((id: string) => { const w = workflows.find(x => x.id === id); return w ? cloneDefinition(w) : undefined }, [workflows])
   const getPublishedWorkflow = useCallback((id: string) => {
     const w = workflows.find(x => x.id === id)
-    const v = w?.publishedVersions.find(x => x.id === w.publishedVersionId)
+    const v = asArray<PublishedWorkflowVersion>(w?.publishedVersions).find(x => x.id === w.publishedVersionId)
     return v ? cloneVersion(v) : undefined
   }, [workflows])
   const getAssignment = useCallback((projectId: string): ProjectWorkflowAssignment => assignments.find(x => x.projectId === projectId) ?? { projectId, defaultWorkflowId }, [assignments])
