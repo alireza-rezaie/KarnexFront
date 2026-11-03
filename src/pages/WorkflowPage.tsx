@@ -158,11 +158,14 @@ export default function WorkflowPage() {
   const editorWorkflow = editorDefinition
     ? workflowCatalog?.getPublishedWorkflow(editorDefinition.id)
     : undefined;
+  const activeWorkflowDefinition = !requestedWorkflowId && activeWorkflow
+    ? workflowCatalog?.getWorkflow(activeWorkflow.workflowId)
+    : undefined;
   const editorPayload = editorWorkflow ?? editorDefinition?.draft ?? (!requestedWorkflowId ? activeWorkflow : undefined);
   const editorIdentity = `${requestedWorkflowId ?? 'active'}:${editorDefinition?.publishedVersionId ?? (editorDefinition?.draft ? 'draft' : activeWorkflow?.id ?? editorDefinition?.id ?? 'loading')}`;
   const editorStatuses = editorPayload?.statuses ?? statuses;
   const editorTransitions = editorPayload?.transitions ?? transitions;
-  const isSystemWorkflow = editorDefinition?.isSystem ?? !requestedWorkflowId;
+  const isSystemWorkflow = editorDefinition?.isSystem ?? activeWorkflowDefinition?.isSystem ?? !requestedWorkflowId;
   const isEditingActiveWorkflow =
     !requestedWorkflowId ||
     workflowCatalog?.getActiveWorkflow(currentProject?.id ?? "")?.workflowId ===
