@@ -190,7 +190,7 @@ export function WorkflowCatalogProvider({ children }: { children: ReactNode }) {
   const publishWorkflow = useCallback(async (workflowId: string, draft: WorkflowDraftPayload): Promise<WorkflowCatalogMutationResult> => {
     const source = workflows.find(w => w.id === workflowId), recordId = recordIdFor(workflowId)
     if (!source) return { ok: false, message: 'گردش‌کار پیدا نشد.' }
-    if (source.isSystem || !source.ownerProjectId || !canManageProjectWorkflow(source.ownerProjectId)) return { ok: false, message: 'فقط مدیر پروژه یا اسکرام‌مسترِ عضو پروژهٔ مالک می‌تواند Draft گردش‌کار را منتشر کند.' }
+    if ((apiEnabled && source.isSystem) || (!source.isSystem && (!source.ownerProjectId || !canManageProjectWorkflow(source.ownerProjectId)))) return { ok: false, message: 'فقط مدیر پروژه یا اسکرام‌مسترِ عضو پروژهٔ مالک می‌تواند Draft گردش‌کار را منتشر کند.' }
     const validation = validateCatalogPayload(draft, source.isSystem ? baseTaskStatuses.map(s => s.id) : [])
     if (validation) return { ok: false, message: validation }
     try {
