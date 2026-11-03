@@ -679,6 +679,28 @@ export default function WorkflowPage() {
     setNodePositions(nodePositionsFor(draftStatuses));
     setZoom(1);
   };
+  const saveDraft = async () => {
+    if (!workflowCatalog || !editorDefinition || !currentProject) {
+      return setWorkflowActionError("ابتدا یک گردش‌کار سفارشی ایجاد یا انتخاب کنید.");
+    }
+    if (!editorDefinition.ownerProjectId || editorDefinition.isSystem) {
+      return setWorkflowActionError("ذخیرهٔ پیش‌نویس فقط برای گردش‌کار سفارشیِ متعلق به پروژه امکان‌پذیر است.");
+    }
+    const validationError = validateWorkflowDraft(currentDraft, []);
+    if (validationError) return setWorkflowActionError(validationError);
+    const policyError = currentDraft.transitions.flatMap((transition) =>
+      validateTransitionPolicyDefinition(transition, {
+        memberIds: members.map((member) => member.id),
+        roleIds: roles.map((role) => role.id),
+      }),
+    )[0];
+    if (policyError) return setWorkflowActionError(policyError);
+    const result = await workflowCatalog.saveWorkflowDraft(editorDefinition.id, currentDraft);
+    if (!result.ok) return setWorkflowActionError(result.message ?? "ذخیرهٔ پیش‌نویس انجام نشد.");
+    setPublishedDraft(cloneWorkflowDraft(currentDraft));
+    setHistory({ undo: [], redo: [] });
+    setWorkflowActionError("");
+  };
   const publishDraft = async () => {
     const validationError = validateWorkflowDraft(
       currentDraft,
