@@ -153,11 +153,24 @@ export function WorkflowCatalogProvider({ children }: { children: ReactNode }) {
 
   const createWorkflow = useCallback(async (input: CreateWorkflowDefinitionInput): Promise<WorkflowCatalogMutationResult> => {
     const owner = projectsContext?.projects.find(p => canManageProjectWorkflow(p.id))
-    if (!owner) return { ok: false, message: 'برای ساخت گردش‌کار، پروژهٔ مالک در دسترس نیست.' }
-    const draft = await createWorkflowDraft({ name: input.name, description: input.description, ownerProjectId: owner.id })
-    if (!draft.ok || !draft.workflow) return draft
-    return publishWorkflow(draft.workflow.id, input)
-  }, [canManageProjectWorkflow, createWorkflowDraft, projectsContext])
+    const ownerProjectId = owner ? numericId(owner.id) : null
+    if (!input.name.trim()) return { ok: false, message: 'نام گردش‌کار الزامی است.' }
+    if (apiEnabled) {
+      if (!ownerProjectId || !owner) return { ok: false, message: 'برای ساخت گردش‌کار، پروژهٔ مالک در دسترس نیست.' }
+      try {
+        const created = await requestApi<ApiWorkflow>('/api/workflows/drafts', { method: 'POST', body: JSON.stringify({ name: input.name.trim(), description: input.description, ownerProjectId, payload: { statuses: [], transitions: [] } }) })
+        const published = await requestApi<ApiWorkflow>(`/api/workflows/${created.recordId}/publish`, { method: 'POST', body: JSON.stringify(input) })
+        const workflow = fromApi(published)
+        setWorkflows(current => [...current.filter(w => w.id !== workflow.id), workflow])
+        return { ok: true, workflow: cloneDefinition(workflow) }
+      } catch (e) { return { ok: false, message: e instanceof Error ? e.message : 'ساخت گردش‌کار ناموفق بود.' } }
+    }
+    const workflowId = createId('workflow')
+    const version: PublishedWorkflowVersion = { id: createId('workflow-version'), workflowId, version: 1, ...clonePayload(input), publishedAt: new Date().toISOString() }
+    const workflow: StoredWorkflow = { id: workflowId, name: input.name.trim(), description: input.description?.trim() || undefined, publishedVersionId: version.id, publishedVersions: [version] }
+    setWorkflows(current => [...current, workflow])
+    return { ok: true, workflow: cloneDefinition(workflow) }
+  }, [apiEnabled, canManageProjectWorkflow, projectsContext])
 
   const cloneWorkflow = useCallback(async (workflowId: string, input: CloneWorkflowDefinitionInput & { ownerProjectId: string }): Promise<WorkflowCatalogMutationResult> => {
     const source = workflows.find(w => w.id === workflowId), recordId = recordIdFor(workflowId), ownerProjectId = numericId(input.ownerProjectId)
