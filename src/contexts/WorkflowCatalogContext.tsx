@@ -58,7 +58,7 @@ function localDefault(): WorkflowDefinition {
 }
 function fromApi(dto: ApiWorkflow): StoredWorkflow {
   const versions = asArray<NonNullable<ApiWorkflow['publishedVersions']>[number]>(dto.publishedVersions).map(v => ({ id: v.id, workflowId: dto.id, version: v.version, publishedAt: v.publishedAt, ...clonePayload(v.payload) }))
-  const current = versions.find(v => v.id === dto.publishedVersionId) ?? (dto.version > 0 ? {
+  const current = versions.find(v => v.id === dto.publishedVersionId) ?? versions.sort((a, b) => b.version - a.version)[0] ?? (dto.version > 0 ? {
     id: dto.publishedVersionId ?? `${dto.id}-version-${dto.version}`, workflowId: dto.id, version: dto.version,
     publishedAt: new Date().toISOString(), ...clonePayload(dto.payload),
   } : undefined)
@@ -77,7 +77,7 @@ const numericId = (value: string) => {
 
 type WorkflowCatalogContextValue = {
   workflows: WorkflowDefinition[]; assignments: ProjectWorkflowAssignment[]; loading: boolean; error: string | null;
-  capabilities: WorkflowCatalogCapabilities; listWorkflows: () => WorkflowDefinition[];
+  capabilities: WorkflowCatalogCapabilities; refresh: () => Promise<void>; listWorkflows: () => WorkflowDefinition[];
   getWorkflow: (id: string) => WorkflowDefinition | undefined; getPublishedWorkflow: (id: string) => PublishedWorkflowVersion | undefined;
   getAssignment: (projectId: string) => ProjectWorkflowAssignment; getActiveWorkflow: (projectId: string) => PublishedWorkflowVersion | undefined;
   createWorkflow: (input: CreateWorkflowDefinitionInput) => Promise<WorkflowCatalogMutationResult>;
@@ -130,7 +130,9 @@ export function WorkflowCatalogProvider({ children }: { children: ReactNode }) {
   const getWorkflow = useCallback((id: string) => { const w = workflows.find(x => x.id === id); return w ? cloneDefinition(w) : undefined }, [workflows])
   const getPublishedWorkflow = useCallback((id: string) => {
     const w = workflows.find(x => x.id === id)
-    const v = asArray<PublishedWorkflowVersion>(w?.publishedVersions).find(x => x.id === w.publishedVersionId)
+    const versions = asArray<PublishedWorkflowVersion>(w?.publishedVersions)
+    const v = versions.find(x => x.id === w?.publishedVersionId) ??
+      [...versions].sort((a, b) => b.version - a.version)[0]
     return v ? cloneVersion(v) : undefined
   }, [workflows])
   const getAssignment = useCallback((projectId: string): ProjectWorkflowAssignment => assignments.find(x => x.projectId === projectId) ?? { projectId, defaultWorkflowId }, [assignments])
@@ -255,9 +257,9 @@ export function WorkflowCatalogProvider({ children }: { children: ReactNode }) {
     workflows: workflows.map(cloneDefinition), assignments: assignments.map(a => ({ ...a })),
     loading, error,
     capabilities: { canCreateWorkflow: true, canCloneWorkflow: true, canPublishWorkflow: true, canAssignWorkflow: true },
-    listWorkflows, getWorkflow, getPublishedWorkflow, getAssignment, getActiveWorkflow,
+    refresh, listWorkflows, getWorkflow, getPublishedWorkflow, getAssignment, getActiveWorkflow,
     createWorkflow, createWorkflowDraft, cloneWorkflow, saveWorkflowDraft, publishWorkflow, assignWorkflow,
-  }), [workflows, assignments, loading, error, listWorkflows, getWorkflow, getPublishedWorkflow, getAssignment, getActiveWorkflow, createWorkflow, createWorkflowDraft, cloneWorkflow, saveWorkflowDraft, publishWorkflow, assignWorkflow])
+  }), [workflows, assignments, loading, error, refresh, listWorkflows, getWorkflow, getPublishedWorkflow, getAssignment, getActiveWorkflow, createWorkflow, createWorkflowDraft, cloneWorkflow, saveWorkflowDraft, publishWorkflow, assignWorkflow])
   return <WorkflowCatalogContext.Provider value={value}>{children}</WorkflowCatalogContext.Provider>
 }
 
