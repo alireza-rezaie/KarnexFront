@@ -183,6 +183,8 @@ export default function WorkflowPage() {
   } | null>(null);
   const dragStartDraftRef = useRef<WorkflowDraft | null>(null);
   const [activeTab, setActiveTab] = useState<WorkflowTab>("graph");
+  const [assignmentError, setAssignmentError] = useState("");
+  const [assignmentBusy, setAssignmentBusy] = useState(false);
   const [draftStatuses, setDraftStatuses] = useState<StatusDefinition[]>(() =>
     editorStatuses.map((status) => ({ ...status })),
   );
@@ -958,6 +960,41 @@ export default function WorkflowPage() {
                   {currentProject?.name ?? "پروژه جاری"} · وضعیت‌ها و انتقال‌های
                   مجاز را مدیریت کنید.
                 </p>
+                {workflowCatalog && currentProject && (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <label className="text-xs text-muted-foreground" htmlFor="project-workflow-assignment">
+                      گردش‌کار فعال پروژه
+                    </label>
+                    <select
+                      id="project-workflow-assignment"
+                      aria-label="گردش‌کار فعال پروژه"
+                      value={activeWorkflow?.workflowId ?? "workflow-default"}
+                      disabled={workflowCatalog.loading || assignmentBusy}
+                      onChange={async (event) => {
+                        const nextId = event.target.value;
+                        if (!nextId || nextId === activeWorkflow?.workflowId) return;
+                        const next = workflowCatalog.getPublishedWorkflow(nextId);
+                        if (!next) {
+                          setAssignmentError("فقط گردش‌کار منتشرشده قابل تخصیص است.");
+                          return;
+                        }
+                        if (!window.confirm("گردش‌کار فعال پروژه تغییر کند؟ وضعیت وظایف به‌صورت خودکار جابه‌جا نمی‌شود.")) return;
+                        setAssignmentBusy(true);
+                        setAssignmentError("");
+                        const result = await workflowCatalog.assignWorkflow(currentProject.id, nextId);
+                        setAssignmentBusy(false);
+                        if (!result.ok) setAssignmentError(result.message ?? "تغییر گردش‌کار انجام نشد.");
+                      }}
+                      className="min-w-48 rounded-lg border border-border bg-secondary px-3 py-2 text-xs text-foreground disabled:opacity-60"
+                    >
+                      {workflowCatalog.workflows.filter((item) => workflowCatalog.getPublishedWorkflow(item.id)).map((item) => (
+                        <option key={item.id} value={item.id}>{item.name}</option>
+                      ))}
+                    </select>
+                    {assignmentBusy && <span className="text-xs text-muted-foreground">در حال تغییر…</span>}
+                    {assignmentError && <span role="alert" className="text-xs text-destructive">{assignmentError}</span>}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1005,13 +1042,15 @@ export default function WorkflowPage() {
               className="h-8 gap-1.5 px-2.5 text-[11px] [&_svg]:size-3.5"
               size="sm"
               disabled={
-                !isDirty ||
+                (!isDirty && Boolean(editorDefinition?.publishedVersionId)) ||
+                !editorDefinition ||
+                editorDefinition.isSystem ||
                 !statusCapabilities.canReplaceStatuses ||
                 !workflowCapabilities.canReplaceTransitions
               }
               onClick={() => void publishDraft()}
             >
-              انتشار تغییرات
+              {editorDefinition && !editorDefinition.publishedVersionId ? "انتشار گردش‌کار" : "انتشار تغییرات"}
             </Button>
           </div>
         </div>

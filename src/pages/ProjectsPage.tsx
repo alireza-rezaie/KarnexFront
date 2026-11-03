@@ -147,6 +147,7 @@ export default function ProjectsPage() {
     setWorkflowSetupError("");
     setWorkflowSetupProjectId("");
     setShowCreateModal(true);
+    void workflowCatalog.refresh();
   };
   const setProjectView = (view: "all" | "archived") => {
     const params = new URLSearchParams(location.search);

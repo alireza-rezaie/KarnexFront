@@ -18,7 +18,9 @@ export const projectRoleLabels: Record<ProjectRoleId, string> = {
 export type ProjectRoleId = (typeof projectRoleIds)[keyof typeof projectRoleIds]
 
 export function isProjectRoleManager(roleId: string | undefined): roleId is ProjectRoleId {
-  return roleId === projectRoleIds.projectManager || roleId === projectRoleIds.scrumMaster
+  const normalized = roleId?.trim().toLocaleLowerCase().replace(/[ _-]+/g, ' ')
+  return normalized === 'pm' || normalized === 'sm' ||
+    normalized === 'project manager' || normalized === 'scrum master'
 }
 
 export interface Permission {
