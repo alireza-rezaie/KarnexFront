@@ -14,6 +14,19 @@ The current application is a frontend runtime with in-memory Context authorities
 
 This document is explanatory only. The canonical, machine-checkable integration contract is the current TypeScript surface in [`src/types/api.ts`](./src/types/api.ts) and [`src/types/*Api.ts`](./src/types). If this document conflicts with those types, the types win.
 
+## HTTP route namespaces
+
+System-administration endpoints must use the `/Admin` prefix and require the backend `Admin` role. The frontend must not call these routes as ordinary project/member APIs.
+
+| Capability | Route |
+| --- | --- |
+| System user administration | `/Admin/api/users` |
+| System plan catalogue administration | `/Admin/api/billing/plans` |
+| Public plan catalogue | `/api/billing/plans` |
+| Current user's subscription | `/api/billing/subscription` |
+
+The `/Admin` prefix is a route namespace, not an authorization mechanism by itself; every Admin controller/action must also enforce the System Admin role server-side.
+
 ## Canonical contract modules
 
 | Domain | Canonical contract |

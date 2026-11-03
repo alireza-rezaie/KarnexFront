@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [applyUser, token])
   const refreshManagedAccounts = useCallback(async () => {
     if (!token || currentAccount?.accountRole !== 'system-admin') return
-    const users = await requestApi<ManagedUser[]>('/api/users', {}, token)
+    const users = await requestApi<ManagedUser[]>('/Admin/api/users', {}, token)
     setManagedAccounts(users.map(fromManagedUser))
   }, [currentAccount?.accountRole, token])
   useEffect(() => {
@@ -85,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const createRuntimeAccount = useCallback(async (input: CreateRuntimeAccountInput): Promise<RuntimeAccountMutationResult> => {
     if (!token) return { ok: false, message: 'نشست معتبر نیست.' }
     try {
-      const user = await requestApi<ManagedUser>('/api/users', { method: 'POST', body: JSON.stringify({ displayName: `${input.firstName.trim()} ${input.lastName.trim()}`.trim(), email: input.email.trim(), phoneNumber: normalizePhoneNumber(input.phone), password: input.password, role: 'User' }) }, token)
+      const user = await requestApi<ManagedUser>('/Admin/api/users', { method: 'POST', body: JSON.stringify({ displayName: `${input.firstName.trim()} ${input.lastName.trim()}`.trim(), email: input.email.trim(), phoneNumber: normalizePhoneNumber(input.phone), password: input.password, role: 'User' }) }, token)
       const account = fromManagedUser(user)
       setManagedAccounts((current) => [...current, account])
       return { ok: true, account }
@@ -94,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updateRuntimeAccount = useCallback(async (accountId: string, input: UpdateRuntimeAccountInput): Promise<RuntimeAccountMutationResult> => {
     if (!token) return { ok: false, message: 'نشست معتبر نیست.' }
     try {
-      const user = await requestApi<ManagedUser>(`/api/users/${encodeURIComponent(accountId)}`, { method: 'PUT', body: JSON.stringify({ displayName: `${input.firstName.trim()} ${input.lastName.trim()}`.trim(), email: input.email.trim(), phoneNumber: normalizePhoneNumber(input.phone), userName: input.username.trim() }) }, token)
+      const user = await requestApi<ManagedUser>(`/Admin/api/users/${encodeURIComponent(accountId)}`, { method: 'PUT', body: JSON.stringify({ displayName: `${input.firstName.trim()} ${input.lastName.trim()}`.trim(), email: input.email.trim(), phoneNumber: normalizePhoneNumber(input.phone), userName: input.username.trim() }) }, token)
       const account = fromManagedUser(user)
       setManagedAccounts((current) => current.map((item) => item.id === accountId ? account : item))
       if (currentAccount?.id === accountId) setCurrentAccount(account)
@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const setRuntimeAccountActive = useCallback(async (accountId: string, isActive: boolean): Promise<RuntimeAccountMutationResult> => {
     if (!token) return { ok: false, message: 'نشست معتبر نیست.' }
     try {
-      const user = await requestApi<ManagedUser>(`/api/users/${encodeURIComponent(accountId)}/lock`, { method: 'PATCH', body: JSON.stringify({ isLocked: !isActive }) }, token)
+      const user = await requestApi<ManagedUser>(`/Admin/api/users/${encodeURIComponent(accountId)}/lock`, { method: 'PATCH', body: JSON.stringify({ isLocked: !isActive }) }, token)
       const account = fromManagedUser(user)
       setManagedAccounts((current) => current.map((item) => item.id === accountId ? account : item))
       return { ok: true, account }
@@ -113,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const setRuntimeAccountRole = useCallback(async (accountId: string, role: RuntimeAuthAccount['accountRole']): Promise<RuntimeAccountMutationResult> => {
     if (!token) return { ok: false, message: 'نشست معتبر نیست.' }
     try {
-      const user = await requestApi<ManagedUser>(`/api/users/${encodeURIComponent(accountId)}/role`, { method: 'PATCH', body: JSON.stringify({ role: role === 'system-admin' ? 'Admin' : 'User' }) }, token)
+      const user = await requestApi<ManagedUser>(`/Admin/api/users/${encodeURIComponent(accountId)}/role`, { method: 'PATCH', body: JSON.stringify({ role: role === 'system-admin' ? 'Admin' : 'User' }) }, token)
       const account = fromManagedUser(user)
       setManagedAccounts((current) => current.map((item) => item.id === accountId ? account : item))
       return { ok: true, account }
