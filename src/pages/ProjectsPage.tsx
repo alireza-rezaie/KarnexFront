@@ -236,7 +236,10 @@ export default function ProjectsPage() {
       completedTasks: 0,
     });
 
-    if (!result.ok) return;
+    if (!result.ok) {
+      setWorkflowSetupError(result.message ?? "ساخت پروژه انجام نشد. لطفاً اطلاعات را بررسی و دوباره تلاش کنید.");
+      return;
+    }
     if (!result.project) {
       setWorkflowSetupError(
         "پروژه ساخته شد، اما شناسهٔ پروژه برای تنظیم گردش‌کار در دسترس نیست.",
