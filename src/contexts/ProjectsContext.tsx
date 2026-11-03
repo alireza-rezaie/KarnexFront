@@ -137,8 +137,9 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
   }, [commitProjects])
   const createProject = useCallback(async (input: CreateProjectInput): Promise<ProjectMutationResult> => {
     const creatorId = auth?.currentUserId
-    const memberIds = [...new Set(creatorId && (hasMember?.(creatorId) ?? false) ? [...input.members, creatorId] : input.members)]
-    const unknownMemberId = memberIds.find((memberId) => !(hasMember?.(memberId) ?? false))
+    // The backend atomically creates the authenticated creator's pm membership.
+    const memberIds = [...new Set([...input.members, ...(creatorId ? [creatorId] : [])])]
+    const unknownMemberId = input.members.find((memberId) => !(hasMember?.(memberId) ?? false))
     if (unknownMemberId) return { ok: false, message: 'عضو انتخاب‌شده در فهرست کاربران وجود ندارد.' }
     const memberRoles = {
       ...Object.fromEntries(Object.entries(input.memberRoles ?? {}).filter(([memberId]) => memberIds.includes(memberId))),
@@ -148,7 +149,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     // it undefined would activate the legacy global-member-role fallback.
     try {
       const created = await requestApi<BackendProject>('/api/Projects', { method: 'POST', body: JSON.stringify({ key: input.key, name: input.name, description: input.description, type: input.type, privacy: input.privacy, icon: input.icon, color: input.color, startDate: input.startDate || null, endDate: input.endDate || null }) })
-      await Promise.all(memberIds.map((userId) => requestApi<BackendProjectMember>(`/api/Projects/${created.id}/members`, {
+      await Promise.all(memberIds.filter((userId) => userId !== creatorId).map((userId) => requestApi<BackendProjectMember>(`/api/Projects/${created.id}/members`, {
         method: 'POST',
         body: JSON.stringify({ userId, role: memberRoles[userId] ?? 'member' }),
       })))
