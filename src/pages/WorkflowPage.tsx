@@ -150,6 +150,7 @@ export default function WorkflowPage() {
   const { roles } = useRoles();
   const { sprints } = useSprints();
   const requestedWorkflowId = searchParams.get("workflowId");
+  const activeWorkflow = workflowCatalog?.getActiveWorkflow(currentProject?.id ?? "");
   const editorDefinition =
     requestedWorkflowId && workflowCatalog
       ? workflowCatalog.getWorkflow(requestedWorkflowId)
@@ -157,14 +158,19 @@ export default function WorkflowPage() {
   const editorWorkflow = editorDefinition
     ? workflowCatalog?.getPublishedWorkflow(editorDefinition.id)
     : undefined;
-  const editorPayload = editorWorkflow ?? editorDefinition?.draft;
+  const activeWorkflowDefinition = !requestedWorkflowId && activeWorkflow
+    ? workflowCatalog?.getWorkflow(activeWorkflow.workflowId)
+    : undefined;
+  const editorPayload = editorWorkflow ?? editorDefinition?.draft ?? (!requestedWorkflowId ? activeWorkflow : undefined);
+  const editorIdentity = `${requestedWorkflowId ?? 'active'}:${editorDefinition?.publishedVersionId ?? (editorDefinition?.draft ? 'draft' : activeWorkflow?.id ?? editorDefinition?.id ?? 'loading')}`;
   const editorStatuses = editorPayload?.statuses ?? statuses;
   const editorTransitions = editorPayload?.transitions ?? transitions;
-  const isSystemWorkflow = editorDefinition?.isSystem ?? !requestedWorkflowId;
+  const isSystemWorkflow = editorDefinition?.isSystem ?? activeWorkflowDefinition?.isSystem ?? !requestedWorkflowId;
   const isEditingActiveWorkflow =
     !requestedWorkflowId ||
     workflowCatalog?.getActiveWorkflow(currentProject?.id ?? "")?.workflowId ===
       editorDefinition?.id;
+  const lastEditorIdentityRef = useRef(editorIdentity);
   const workflowCanvasRef = useRef<HTMLDivElement>(null);
   const nodeElementRefs = useRef(new Map<string, HTMLDivElement>());
   const edgeElementRefs = useRef(new Map<string, EdgeElementRefs>());
@@ -313,6 +319,22 @@ export default function WorkflowPage() {
       ),
     );
   };
+  useEffect(() => {
+    if (lastEditorIdentityRef.current === editorIdentity) return;
+    lastEditorIdentityRef.current = editorIdentity;
+    const nextStatuses = editorPayload?.statuses ?? statuses;
+    const nextTransitions = editorPayload?.transitions ?? transitions;
+    const nextDraft = createWorkflowDraft(nextStatuses, nextTransitions, nodePositionsFor(nextStatuses));
+    restoreDraft(nextDraft);
+    setPublishedDraft(cloneWorkflowDraft(nextDraft));
+    setHistory({ undo: [], redo: [] });
+    setSelectedStatusId(null);
+    setSelectedTransitionId(null);
+    setWorkflowActionError("");
+    // The identity changes only when the selected workflow or its published version changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editorIdentity]);
+
   const recordDraftChange = (nextDraft: WorkflowDraft) => {
     setHistory((current) => pushWorkflowHistory(current, currentDraft));
     restoreDraft(nextDraft);
