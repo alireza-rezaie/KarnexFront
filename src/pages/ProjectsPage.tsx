@@ -38,6 +38,8 @@ const createProjectSchema = (existingKeys: string[]) =>
       .string()
       .trim()
       .min(1, "کلید پروژه الزامی است")
+      .max(12, "کلید پروژه حداکثر باید ۱۲ کاراکتر باشد")
+      .regex(/^[A-Za-z0-9_-]+$/, "کلید پروژه فقط می‌تواند شامل حروف انگلیسی، عدد، خط تیره و زیرخط باشد")
       .refine(
         (value) =>
           !existingKeys.some(
@@ -106,8 +108,12 @@ export default function ProjectsPage() {
     createProject,
   );
   const canSubmitProject = canCreateProject && createProjectSchema(projects.map((project) => project.key)).safeParse(watchedCreateProjectValues).success;
-  const selectableWorkflows = workflowCatalog.workflows.filter((workflow) =>
-    Boolean(workflowCatalog.getPublishedWorkflow(workflow.id)),
+  const selectableWorkflows = Array.from(
+    new Map(
+      workflowCatalog.workflows
+        .filter((workflow) => Boolean(workflowCatalog.getPublishedWorkflow(workflow.id)))
+        .map((workflow) => [workflow.id, workflow]),
+    ).values(),
   );
 
   const filters: { id: FilterButton; label: string }[] = [
