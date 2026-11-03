@@ -31,7 +31,7 @@ const normalizePayload = (value?: Partial<WorkflowDraftPayload> | null): Workflo
   statuses: asArray<WorkflowDraftPayload['statuses'][number]>(value?.statuses).map(s => ({ ...s })),
   transitions: asArray<WorkflowTransition>(value?.transitions).map(t => ({ ...t, conditions: t.conditions ? structuredClone(t.conditions) : undefined, validators: t.validators ? structuredClone(t.validators) : undefined, approval: t.approval ? structuredClone(t.approval) : undefined })),
 })
-const clonePayload = (p: WorkflowDraftPayload): WorkflowDraftPayload => normalizePayload(p)
+const clonePayload = (p?: Partial<WorkflowDraftPayload> | null): WorkflowDraftPayload => normalizePayload(p)
 const cloneVersion = (v: PublishedWorkflowVersion): PublishedWorkflowVersion => ({ ...v, ...clonePayload(v) })
 const cloneDefinition = (w: WorkflowDefinition): WorkflowDefinition => ({ ...w, publishedVersions: asArray<PublishedWorkflowVersion>(w.publishedVersions).map(cloneVersion), draft: w.draft ? clonePayload(w.draft) : undefined })
 const createId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`
