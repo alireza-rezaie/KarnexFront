@@ -150,6 +150,7 @@ export default function WorkflowPage() {
   const { roles } = useRoles();
   const { sprints } = useSprints();
   const requestedWorkflowId = searchParams.get("workflowId");
+  const activeWorkflow = workflowCatalog?.getActiveWorkflow(currentProject?.id ?? "");
   const editorDefinition =
     requestedWorkflowId && workflowCatalog
       ? workflowCatalog.getWorkflow(requestedWorkflowId)
@@ -157,8 +158,8 @@ export default function WorkflowPage() {
   const editorWorkflow = editorDefinition
     ? workflowCatalog?.getPublishedWorkflow(editorDefinition.id)
     : undefined;
-  const editorPayload = editorWorkflow ?? editorDefinition?.draft;
-  const editorIdentity = `${requestedWorkflowId ?? 'active'}:${editorDefinition?.publishedVersionId ?? (editorDefinition?.draft ? 'draft' : editorDefinition?.id ?? 'loading')}`;
+  const editorPayload = editorWorkflow ?? editorDefinition?.draft ?? (!requestedWorkflowId ? activeWorkflow : undefined);
+  const editorIdentity = `${requestedWorkflowId ?? 'active'}:${editorDefinition?.publishedVersionId ?? (editorDefinition?.draft ? 'draft' : activeWorkflow?.id ?? editorDefinition?.id ?? 'loading')}`;
   const editorStatuses = editorPayload?.statuses ?? statuses;
   const editorTransitions = editorPayload?.transitions ?? transitions;
   const isSystemWorkflow = editorDefinition?.isSystem ?? !requestedWorkflowId;
