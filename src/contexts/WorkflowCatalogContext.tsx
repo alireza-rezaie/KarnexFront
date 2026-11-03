@@ -81,6 +81,7 @@ type WorkflowCatalogContextValue = {
   createWorkflow: (input: CreateWorkflowDefinitionInput) => Promise<WorkflowCatalogMutationResult>;
   createWorkflowDraft: (input: Pick<CreateWorkflowDefinitionInput, 'name' | 'description'> & { ownerProjectId: string }) => Promise<WorkflowCatalogMutationResult>;
   cloneWorkflow: (id: string, input: CloneWorkflowDefinitionInput & { ownerProjectId: string }) => Promise<WorkflowCatalogMutationResult>;
+  saveWorkflowDraft: (id: string, draft: WorkflowDraftPayload) => Promise<WorkflowCatalogMutationResult>;
   publishWorkflow: (id: string, draft: WorkflowDraftPayload) => Promise<WorkflowCatalogMutationResult>;
   assignWorkflow: (projectId: string, workflowId: string) => Promise<WorkflowCatalogMutationResult>;
 }
@@ -187,6 +188,29 @@ export function WorkflowCatalogProvider({ children }: { children: ReactNode }) {
     } catch (e) { return { ok: false, message: e instanceof Error ? e.message : 'کپی گردش‌کار ناموفق بود.' } }
   }, [apiEnabled, canManageProjectWorkflow, getPublishedWorkflow, recordIdFor, workflows])
 
+  const saveWorkflowDraft = useCallback(async (workflowId: string, draft: WorkflowDraftPayload): Promise<WorkflowCatalogMutationResult> => {
+    const source = workflows.find(w => w.id === workflowId), recordId = recordIdFor(workflowId)
+    if (!source) return { ok: false, message: 'گردش‌کار پیدا نشد.' }
+    if (source.isSystem || !source.ownerProjectId || !canManageProjectWorkflow(source.ownerProjectId)) return { ok: false, message: 'فقط مدیر پروژه یا اسکرام‌مسترِ عضو پروژهٔ مالک می‌تواند پیش‌نویس را ذخیره کند.' }
+    const validation = validateCatalogPayload(draft, [])
+    if (validation) return { ok: false, message: validation }
+    try {
+      if (apiEnabled) {
+        if (!recordId) return { ok: false, message: 'شناسهٔ گردش‌کار در سرور موجود نیست.' }
+        const dto = await requestApi<ApiWorkflow>(`/api/workflows/${recordId}/draft`, {
+          method: 'PUT',
+          body: JSON.stringify({ name: source.name, description: source.description, ownerProjectId: numericId(source.ownerProjectId), payload: draft }),
+        })
+        const workflow = fromApi(dto)
+        setWorkflows(current => current.map(w => w.id === workflowId ? workflow : w))
+        return { ok: true, workflow: cloneDefinition(workflow) }
+      }
+      const workflow: StoredWorkflow = { ...source, draft: clonePayload(draft) }
+      setWorkflows(current => current.map(w => w.id === workflowId ? workflow : w))
+      return { ok: true, workflow: cloneDefinition(workflow) }
+    } catch (e) { return { ok: false, message: e instanceof Error ? e.message : 'ذخیرهٔ پیش‌نویس ناموفق بود.' } }
+  }, [apiEnabled, canManageProjectWorkflow, recordIdFor, workflows])
+
   const publishWorkflow = useCallback(async (workflowId: string, draft: WorkflowDraftPayload): Promise<WorkflowCatalogMutationResult> => {
     const source = workflows.find(w => w.id === workflowId), recordId = recordIdFor(workflowId)
     if (!source) return { ok: false, message: 'گردش‌کار پیدا نشد.' }
@@ -228,8 +252,8 @@ export function WorkflowCatalogProvider({ children }: { children: ReactNode }) {
     loading, error,
     capabilities: { canCreateWorkflow: true, canCloneWorkflow: true, canPublishWorkflow: true, canAssignWorkflow: true },
     listWorkflows, getWorkflow, getPublishedWorkflow, getAssignment, getActiveWorkflow,
-    createWorkflow, createWorkflowDraft, cloneWorkflow, publishWorkflow, assignWorkflow,
-  }), [workflows, assignments, loading, error, listWorkflows, getWorkflow, getPublishedWorkflow, getAssignment, getActiveWorkflow, createWorkflow, createWorkflowDraft, cloneWorkflow, publishWorkflow, assignWorkflow])
+    createWorkflow, createWorkflowDraft, cloneWorkflow, saveWorkflowDraft, publishWorkflow, assignWorkflow,
+  }), [workflows, assignments, loading, error, listWorkflows, getWorkflow, getPublishedWorkflow, getAssignment, getActiveWorkflow, createWorkflow, createWorkflowDraft, cloneWorkflow, saveWorkflowDraft, publishWorkflow, assignWorkflow])
   return <WorkflowCatalogContext.Provider value={value}>{children}</WorkflowCatalogContext.Provider>
 }
 
